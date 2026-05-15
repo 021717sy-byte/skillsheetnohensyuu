@@ -1,5 +1,4 @@
 # skillsheetnohensyuu
-# skillsheetnohensyuu
 
 スキルシートを編集・管理するためのプロジェクトです。
 
