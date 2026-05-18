@@ -1,65 +1,159 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Engineer } from '@/types/engineer';
+import EngineerTable from '@/components/EngineerTable';
+import SearchFilter from '@/components/SearchFilter';
+import AddEngineerModal from '@/components/AddEngineerModal';
 
 export default function Home() {
+  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterEmploymentType, setFilterEmploymentType] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterSalesRep, setFilterSalesRep] = useState('');
+
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const fetchEngineers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/engineers');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'データの取得に失敗しました');
+      }
+      const data = await res.json();
+      setEngineers(data.engineers);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEngineers();
+  }, [fetchEngineers]);
+
+  const filteredEngineers = engineers.filter((eng) => {
+    if (filterEmploymentType && eng.employmentType !== filterEmploymentType) return false;
+    if (filterDepartment && eng.department !== filterDepartment) return false;
+    if (filterSalesRep && eng.salesRep !== filterSalesRep) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const fields = [
+        eng.name, eng.kana, eng.employmentType, eng.partnerName,
+        eng.customer, eng.projectName, eng.workContent, eng.skills,
+        eng.salesRep, eng.department, eng.location, eng.personInCharge,
+        eng.lending, eng.contractUnit, eng.projectContractPeriod,
+      ];
+      if (!fields.some((f) => f?.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">エンジニア管理システム</h1>
+            <p className="text-xs text-gray-500">
+              {loading ? '読み込み中...' : `${filteredEngineers.length}件 / 合計${engineers.length}件`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchEngineers}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            更新
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            エンジニアを追加
+          </button>
+        </div>
+      </header>
+
+      {/* Filter bar */}
+      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 shrink-0">
+        <SearchFilter
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filterEmploymentType={filterEmploymentType}
+          onFilterEmploymentTypeChange={setFilterEmploymentType}
+          filterDepartment={filterDepartment}
+          onFilterDepartmentChange={setFilterDepartment}
+          filterSalesRep={filterSalesRep}
+          onFilterSalesRepChange={setFilterSalesRep}
+          engineers={engineers}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      </div>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden">
+        {error ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
+              <svg className="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-red-700 font-medium mb-1">エラーが発生しました</p>
+              <p className="text-red-600 text-sm mb-4">{error}</p>
+              <button
+                onClick={fetchEngineers}
+                className="text-sm px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                再試行
+              </button>
+            </div>
+          </div>
+        ) : (
+          <EngineerTable
+            engineers={filteredEngineers}
+            loading={loading}
+            onRefresh={fetchEngineers}
+          />
+        )}
       </main>
+
+      {/* Add modal */}
+      {showAddModal && (
+        <AddEngineerModal
+          onClose={() => setShowAddModal(false)}
+          onSaved={() => {
+            setShowAddModal(false);
+            fetchEngineers();
+          }}
+        />
+      )}
     </div>
   );
 }

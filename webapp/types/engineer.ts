@@ -98,3 +98,6 @@ export const COLUMN_ORDER: (keyof Engineer)[] = [
 ];
 
 export const COMPUTED_FIELDS: (keyof Engineer)[] = ['age', 'generation', 'grossProfit16', 'grossProfit10', 'grossProfit30'];
+
+/** Alias — same list, used in components */
+export const COMPUTED_READONLY = COMPUTED_FIELDS;
