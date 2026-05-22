@@ -1,18 +1,18 @@
-# config.ps1 - 設定ファイル（このファイルだけ編集してください）
+# config.ps1 - Edit this file with your settings
 
 $Config = @{
-    # Claude APIキー（https://console.anthropic.com/ で取得）
+    # Claude API key (get from https://console.anthropic.com/)
     ApiKey = "sk-ant-ここにAPIキーを入力"
 
-    # スキルシートExcelがあるフォルダ
+    # Folder containing Excel skill sheet files
     InputFolder = "X:\01.営業連携\営業連携2026\01_第一"
 
-    # 生成したMarkdownの保存先（リポジトリ内フォルダ名）
+    # Output folder name (inside this repository)
     OutputFolder = "skill-sheets"
 
-    # 除外フォルダ名（部分一致）
+    # Folder names to exclude (partial match)
     ExcludeFolders = @("OLD", "old")
 
-    # 使用するClaudeモデル（変更不要）
+    # Claude model to use
     Model = "claude-haiku-4-5-20251001"
 }

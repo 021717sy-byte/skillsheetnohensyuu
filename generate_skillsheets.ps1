@@ -1,16 +1,16 @@
-# generate_skillsheets.ps1 - スキルシート自動生成スクリプト
+# generate_skillsheets.ps1 - Skill sheet auto-generation script
 
 . "$PSScriptRoot\config.ps1"
 
-$ScriptDir  = $PSScriptRoot
-$OutputDir  = Join-Path $ScriptDir $Config.OutputFolder
+$ScriptDir = $PSScriptRoot
+$OutputDir = Join-Path $ScriptDir $Config.OutputFolder
 
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir | Out-Null
 }
 
-# Excelファイル検索（OLDフォルダ除外）
-Write-Host "Excelファイルを検索中..."
+# Find Excel files (exclude OLD folders)
+Write-Host "Searching for Excel files..."
 $excelFiles = Get-ChildItem -Path $Config.InputFolder -Recurse -Include "*.xlsx","*.xls" -ErrorAction SilentlyContinue |
     Where-Object {
         $path = $_.FullName
@@ -21,9 +21,9 @@ $excelFiles = Get-ChildItem -Path $Config.InputFolder -Recurse -Include "*.xlsx"
         -not $excluded
     }
 
-Write-Host "$($excelFiles.Count)件のExcelファイルを処理します`n"
+Write-Host "Found $($excelFiles.Count) Excel files`n"
 
-# Excel COM初期化
+# Initialize Excel COM
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $false
@@ -38,12 +38,12 @@ foreach ($file in $excelFiles) {
 
     $wb = $null
     try {
-        # Excel読み取り
+        # Read Excel file
         $wb = $excel.Workbooks.Open($file.FullName, 0, $true)
-        $excelText = "ファイル名: $($file.Name)`n`n"
+        $excelText = "Filename: $($file.Name)`n`n"
 
         foreach ($ws in $wb.Sheets) {
-            $excelText += "=== シート: $($ws.Name) ===`n"
+            $excelText += "=== Sheet: $($ws.Name) ===`n"
             $usedRange = $ws.UsedRange
             if ($null -eq $usedRange) { continue }
 
@@ -66,39 +66,8 @@ foreach ($file in $excelFiles) {
         $wb.Close($false)
         $wb = $null
 
-        # Claude API呼び出し
-        $prompt = @"
-以下のExcelデータから、エンジニアのスキルシートをMarkdown形式で整理してください。
-データにある情報のみ使用し、不明な項目は空欄にしてください。
-
-$excelText
-
-出力フォーマット：
-
-# スキルシート：[氏名]
-
-## 基本情報
-| 項目 | 内容 |
-|------|------|
-| 氏名 | |
-| 職種 | |
-| 経験年数 | |
-| 希望業務 | |
-
-## スキル
-| 分類 | 技術・ツール | レベル |
-|------|------------|--------|
-
-## 経験プロジェクト
-### [プロジェクト名]
-- 期間：
-- 役割：
-- 使用技術：
-- 担当内容：
-
-## 資格・その他
--
-"@
+        # Call Claude API
+        $prompt = "The following data is from a Japanese engineer skill sheet Excel file. Please organize it into a well-formatted Markdown document in Japanese. Use only the information present in the data. Leave fields blank if data is missing.`n`nOutput format:`n# スキルシート：[氏名]`n`n## 基本情報`n| 項目 | 内容 |`n|------|------|`n| 氏名 | |`n| 職種 | |`n| 経験年数 | |`n| 希望業務 | |`n`n## スキル`n| 分類 | 技術・ツール | レベル |`n|------|------------|--------|`n`n## 経験プロジェクト`n### [プロジェクト名]`n- 期間：`n- 役割：`n- 使用技術：`n- 担当内容：`n`n## 資格・その他`n-`n`n---`n`nExcel data:`n`n" + $excelText
 
         $requestBody = @{
             model      = $Config.Model
@@ -119,37 +88,37 @@ $excelText
 
         $markdownContent = $response.content[0].text
 
-        # 保存
+        # Save output
         $outputName = [System.IO.Path]::GetFileNameWithoutExtension($file.Name) + ".md"
         $outputPath = Join-Path $OutputDir $outputName
         [System.IO.File]::WriteAllText($outputPath, $markdownContent, [System.Text.Encoding]::UTF8)
 
-        Write-Host "  → 完了: $outputName" -ForegroundColor Green
+        Write-Host "  -> Done: $outputName" -ForegroundColor Green
         $successCount++
 
         Start-Sleep -Milliseconds 300
 
     } catch {
-        Write-Host "  → エラー: $_" -ForegroundColor Red
+        Write-Host "  -> Error: $_" -ForegroundColor Red
         $errorCount++
         if ($null -ne $wb) { try { $wb.Close($false) } catch {} }
     }
 }
 
-# Excel終了
+# Quit Excel
 try {
     $excel.Quit()
     [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
 } catch {}
 
-Write-Host "`n処理完了: 成功 $successCount 件 / エラー $errorCount 件"
+Write-Host "`nDone: $successCount succeeded / $errorCount errors"
 
-# GitHubへプッシュ
-Write-Host "`nGitHubへプッシュ中..."
+# Push to GitHub
+Write-Host "`nPushing to GitHub..."
 Set-Location $ScriptDir
 git add "skill-sheets/"
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
-git commit -m "スキルシート自動更新 $timestamp"
-git push origin main
+git commit -m "skill sheet update $timestamp"
+git push origin claude/investigate-code-behavior-BWOrh
 
-Write-Host "`n完了！GitHubへプッシュしました。" -ForegroundColor Green
+Write-Host "`nComplete! Pushed to GitHub." -ForegroundColor Green
